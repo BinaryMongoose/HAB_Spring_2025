@@ -1,0 +1,4 @@
+Adafruit CircuitPython 9.2.4 on 2025-01-28; Adafruit Feather RP2040 RFM with rp2040
+Board ID:adafruit_feather_rp2040_rfm
+UID:DF643CF013412D26
+boot.py output:
