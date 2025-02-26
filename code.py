@@ -60,12 +60,13 @@ while True:
         for m in measurements:
             try:
                 data_file.write(f'{m()}, ')
-                # print(f'{m()}, ', end='')
+                print(f'{m()}, ', end='')
             except OSError as e:
                 log_file.write(f'{now}: Device disonnected! {e}\n')
             except AttributeError as e:
-                log_file.write(f'{now}: Device wasn't initialized! {e}\n')
-            except
+                log_file.write(f'{now}: Device wasn\'t initialized! {e}\n')
+            except Exception as e:
+                log_file.write(f'{now}: Unknown error occured! {e}\n')
                 
         print()
         data_file.write('\n')
