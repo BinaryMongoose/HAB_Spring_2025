@@ -1,0 +1,10 @@
+1.574: Session started, date is 2/26/2025 3:41:20
+1.708: LIS331 status OPERATIONAL
+1.708: DS3231 status OPERATIONAL
+1.709: LoRa status ()
+1.709: Header created
+21.03: Session started, date is 2/26/2025 3:41:40
+21.031: LIS331 status OPERATIONAL
+21.031: DS3231 status OPERATIONAL
+21.032: LoRa status ()
+21.032: Header created
