@@ -1,8 +1,8 @@
 // Sketch: 1 MB FS: 7 MB FLASH
 #include <LittleFS.h>
 #include <SPI.h>
+#include <LoRa.h>
 #include <Wire.h>
-#include <RH_RF95.h>
 #include "RTClib.h"
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BME680.h"
@@ -19,13 +19,7 @@ File log_file;
 #define SAMPLING_RATE 5000  // It takes around 900 ms to complete a loop. So the sampling rate cannot be less than 900 ms.
 #define TRANSMIT_RATE 5000  //60000
 
-#define RF95_FREQ 907.0
-
-
-char csvBuffer[RH_RF95_MAX_MESSAGE_LEN];
-uint8_t uint8Buffer[RH_RF95_MAX_MESSAGE_LEN];
-
-int raw;
+#define FREQ 907.0
 
 unsigned long current_millis = millis();
 unsigned long last_data_save_millis;
@@ -35,28 +29,35 @@ unsigned long last_transmit_millis;
 RTC_DS3231 rtc;
 Adafruit_LIS331HH lis = Adafruit_LIS331HH();
 Adafruit_BME680 bme;
-RH_RF95 rf95(RFM95_CS, RFM95_INT);
+
+struct SensorData {
+  int unixtime;
+  int millis; 
+  int temp;       
+  int humidity;   
+  int pressure;   
+  int altitude;   
+  int accel_x;
+  int accel_y;
+  int accel_z; 
+};
 
 
 void setup() {
   LittleFS.begin();
   delay(2000);
 
-  pinMode(RFM95_RST, OUTPUT);
-  digitalWrite(RFM95_RST, HIGH);
-
   Serial.begin(115200);
 
-  data_file = LittleFS.open("/main/data/data_file.csv", "a");
-  log_file = LittleFS.open("/main/logs/log.txt", "a");
-
-  digitalWrite(RFM95_RST, LOW);
-  delay(10);
-  digitalWrite(RFM95_RST, HIGH);
-  delay(10);
-
+  
+  LoRa.setPins(RFM95_CS, RFM95_RST, RFM95_INT); 
   // Add logging to make sure these initialize.
-  rf95.init();
+  if (!LoRa.begin(907E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+
+
   rtc.begin();
   lis.begin_I2C();
   bme.begin();
@@ -66,22 +67,14 @@ void setup() {
   bme.setTemperatureOversampling(BME680_OS_8X);
   bme.setHumidityOversampling(BME680_OS_8X);
   bme.setPressureOversampling(BME680_OS_8X);
-
-
-  rf95.setFrequency(RF95_FREQ);
-  // Defaults after init are 434.0MHz, 13dBm, Bw = 125 kHz, Cr = 4/5, Sf = 128chips/symbol, CRC on
-  rf95.setTxPower(23, false);
-
-  log_file.close();
-  data_file.close();
 }
 
 
+SensorData data;
 void loop() {
   unsigned long current_millis = millis();
   if (current_millis - last_data_save_millis >= SAMPLING_RATE) {
     last_data_save_millis = current_millis;
-    data_file = LittleFS.open("/main/data/data_file.csv", "a");
 
     Serial.println("Saving data.");
 
@@ -90,23 +83,26 @@ void loop() {
     lis.getEvent(&event);
     bme.performReading();
 
-    raw = snprintf(csvBuffer, sizeof(csvBuffer), "%d, %d, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n",
-                   now.unixtime(), millis(), bme.temperature, bme.humidity, bme.pressure, 
-                   bme.readAltitude(SEALEVELPRESSURE_HPA), event.acceleration.x, event.acceleration.y, event.acceleration.z);
+    data.temp = round(bme.temperature * 100);
+    data.humidity = round(bme.humidity * 100);
+    data.pressure = round(bme.pressure * 100);
+    data.altitude = round(bme.readAltitude(SEALEVELPRESSURE_HPA) * 100);
+    data.accel_x = round(event.acceleration.x * 1000);
+    data.accel_y = round(event.acceleration.y * 1000);
+    data.accel_z = round(event.acceleration.z * 1000); 
+    data.unixtime = now.unixtime();
 
-    data_file.println(csvBuffer);
-    Serial.println(csvBuffer);
+    Serial.println(event.acceleration.x); 
 
-    data_file.flush();
-    data_file.close();
+    Serial.println(data.unixtime);
 
   } else if (current_millis - last_transmit_millis >= TRANSMIT_RATE) {
     last_transmit_millis = current_millis;
 
+    LoRa.beginPacket();
+    LoRa.write((byte*)&data, sizeof(data));
+    LoRa.endPacket();
+
     Serial.println("Transmiting.");
-    memcpy(uint8Buffer, csvBuffer, raw);
-    delay(10);
-    rf95.send(uint8Buffer, sizeof(uint8Buffer));
-    delay(10);
   }
 }
