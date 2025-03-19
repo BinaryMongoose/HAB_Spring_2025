@@ -30,6 +30,7 @@ RTC_DS3231 rtc;
 Adafruit_LIS331HH lis = Adafruit_LIS331HH();
 Adafruit_BME680 bme;
 
+
 struct SensorData {
   int unixtime;
   int millis; 
@@ -49,7 +50,6 @@ void setup() {
 
   Serial.begin(115200);
 
-  
   LoRa.setPins(RFM95_CS, RFM95_RST, RFM95_INT); 
   // Add logging to make sure these initialize.
   if (!LoRa.begin(907E6)) {
@@ -91,8 +91,6 @@ void loop() {
     data.accel_y = round(event.acceleration.y * 1000);
     data.accel_z = round(event.acceleration.z * 1000); 
     data.unixtime = now.unixtime();
-
-    Serial.println(event.acceleration.x); 
 
     Serial.println(data.unixtime);
 
